@@ -1,0 +1,9 @@
+To-DO
+
+- Reconfigure code to use PyG
+- Indentify max graph size and max unit cell size
+Max_graph = 432
+Max_UC = 16
+
+Notes
+- Ignoring batch sharing for now

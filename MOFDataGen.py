@@ -25,9 +25,10 @@ import networkx as nx
 import trimesh
 import pickle
 
-mofs = ase.io.read('qmof-geometries.xyz',index=':')
-refcodes = np.genfromtxt('qmof-refcodes.csv',delimiter=',',dtype=str)
-properties = np.genfromtxt('qmof-bandgaps.csv',delimiter=',',dtype=str)
+# mofs = ase.io.read('qmof-geometries.xyz',index=':')
+# refcodes = np.genfromtxt('qmof-refcodes.csv',delimiter=',',dtype=str)
+# properties = np.genfromtxt('qmof-bandgaps.csv',delimiter=',',dtype=str)
+
 
 def threshold_sort(matrix, threshold, neighbors, reverse=False, adj=False):
     mask = matrix > threshold
@@ -67,12 +68,14 @@ def threshold_sort(matrix, threshold, neighbors, reverse=False, adj=False):
         )
         return distance_matrix_trimmed, adj_list, adj_attr
 
+
+# Loads MOFS Structure
 os.chdir("./MOF_data")
 mof_uc = []
 i = 1
-for file in glob.glob("*.json"):
-    structure = ase.io.read(os.path.join("./MOF_data", file))
-    distance_matrix = structure.get_all_distances(mic=True)
+for file in glob.glob("C:\\Users\\GillA\\Desktop\\University\\PhD\\Projects\\Generation\\Zeolites\\qmof_database\\relaxed_structures\\*.json"): # List of Cifs of files --> glob.glob looks for .json or *<>
+    structure = ase.io.read(file) ### Relaxed Structure [No need for ]
+    distance_matrix = structure.get_all_distances(mic=True) 
     num_of_nodes = distance_matrix.shape[0]
     if num_of_nodes <= 20:
         mof_uc.append(structure)

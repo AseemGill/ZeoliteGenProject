@@ -6,7 +6,6 @@ import torch.nn.functional as F
 import torch.nn.init as init
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 import time
-
 import numpy as np
 
 from scipy import stats
@@ -255,16 +254,24 @@ class GRANMixtureBernoulli(nn.Module):
 
     def forward(self, inputgraph):
         
-        graph = inputgraph
+        graph = (inputgraph.float(),)
+        # print(graph)
         # Input data
         z_l_mu = ()
         z_g_mu = ()
         kl_loss = 0
         adj_loss = 0
         A_gen = []
+
+        # print(graph.shape)
         for i in range(len(graph)):
+            # A is the Adjaency matrix of the graph
+            # X is an identity matrix with teh same dimensions
             A = graph[i].cuda()
+            # print(A.shape[0])
             X = torch.eye(A.shape[1]).view(1, A.shape[1], -1).repeat(A.shape[0], 1, 1).cuda()
+            # print(X.shape)
+            # raise Exception("STOP")
             z_l_mu_tmp, z_g_mu_tmp, z_mu_graph, z_sigma_graph, Al_pred, Ag_pred, As_pred, A_pred = self.vae(A, X)
             
             z_l_mu = z_l_mu + (z_l_mu_tmp, )

@@ -19,6 +19,8 @@ import os
 import time
 from model import *
 from utils import *
+import os.path as osp
+from torch_geometric.data import Dataset
 
 # Set seeds
 random.seed(10)
@@ -184,7 +186,7 @@ class Make_batch_data:
     def makeAdj(self, graphs, num_pad):
         adj = torch.zeros(len(graphs), num_pad, num_pad)
         for i in range(len(graphs)):
-            graph_tmp = torch.from_numpy(nx.to_numpy_matrix(graphs[i]))
+            graph_tmp = torch.from_numpy(nx.to_numpy_array(graphs[i]))
             adj[i, :, :] = F.pad(graph_tmp, (0, num_pad - graph_tmp.shape[1], 0, num_pad - graph_tmp.shape[0]), "constant", 0)
         
         return adj
@@ -196,7 +198,7 @@ class Make_batch_data:
         '''
         # Number of graphs
         num_graph = len(dataset)
-        
+
         # Number of unit cells
         num_unit_cell = len(set(unit_cell))
         
@@ -215,9 +217,11 @@ class Make_batch_data:
         
         for i in range(num_unit_cell):
 
-            dataset_tmp = [dataset[k] for k in np.where(unit_cell == uc[i])[0]]
+            dataset_tmp = [dataset[k] for k in np.where(np.array(unit_cell) == uc[i])[0]]
             random.shuffle(dataset_tmp)
+            
 
+            # What is num_per_unit_cell for? is it the number of identical unit cells
             data_train_tmp = dataset_tmp[:num_per_unit_cell]
             data_train.append(data_train_tmp)
             unit_cell_tmp_train = uc[i] * num_per_unit_cell
@@ -229,17 +233,25 @@ class Make_batch_data:
             unit_cell_test.append(unit_cell_tmp_test)
             
         # Extract shared data
+        # Randomly samples n graphs from the training data, n = batch_share
         adj_share = []
         for i in range(num_unit_cell):
-            adj_share_tmp = random.sample(data_train[i], self.batch_share)
+            adj_share_tmp = random.sample(data_train[i], self.batch_share) #####
             adj_share.append(self.makeAdj(adj_share_tmp, self.num_pad))
-        
+
         # Make batches for training data
         batch_remain = self.batch_size - self.batch_share
         adj_train = []
         unit_cell_identifier_train = []
+
+    
+
+
+        # adj_train variable, takes the graph and applies zero padding
+        # Iterates through each unit cell
         for i in range(num_unit_cell):
             data_train_unit_cell_tmp = data_train[i]
+            # For each unit cell, makes batches by using n samples and m shared samples, where n = batch_size - m, and m = share size
             for j in range(num_per_unit_cell // self.batch_size):
                 adj_train_unit_cell_tmp = torch.cat((adj_share[i], self.makeAdj(data_train_unit_cell_tmp[j * batch_remain:(j+1) * batch_remain], self.num_pad)), dim = 0)
                 adj_train.append(adj_train_unit_cell_tmp)
@@ -248,6 +260,7 @@ class Make_batch_data:
         # Make batches for testing data
         adj_test = []
         unit_cell_identifier_test = []
+
         for i in range(num_unit_cell):
             data_test_unit_cell_tmp = data_test[i]
             for j in range(num_per_unit_cell // self.batch_size):
@@ -279,4 +292,48 @@ class Make_batch_data:
         
         return adj_train_output, adj_test_output
 
-        
+class ZeoliteDataset(Dataset):
+    def __init__(self, root, transform=None, pre_transform=None, pre_filter=None):
+        super(ZeoliteDataset, self).__init__(root, transform, pre_transform, pre_filter)
+
+    @property
+    def raw_file_names(self):
+        return ['ZeoGraphs.p', 'ZeoUnitCells.']
+
+    @property
+    def processed_file_names(self):
+        return os.listdir(self.processed_dir)
+    
+    def download(self):
+        pass
+    
+    def process(self):
+        idx = 0
+        self.graphs = pd.read_pickle(self.raw_paths[0])
+        max_graph_size = 432
+
+        if  not os.listdir(self.processed_dir):
+            for graph in self.graphs:
+                # Read data from `raw_path
+                adj = torch.zeros(max_graph_size, max_graph_size)
+
+                graph_tmp = torch.from_numpy(nx.to_numpy_array(graph))
+                adj = np.pad(graph_tmp, ((0, max_graph_size - graph_tmp.shape[1]), (0, max_graph_size - graph_tmp.shape[0])), "constant",constant_values = (0,0))
+                adj = torch.from_numpy(adj)
+
+
+                if self.pre_filter is not None and not self.pre_filter(data):
+                    continue
+
+                if self.pre_transform is not None:
+                    data = self.pre_transform(data)
+
+                torch.save(adj, osp.join(self.processed_dir, f'data_{idx}.pt'))
+                idx += 1
+
+    def len(self):
+        return len(self.processed_file_names)
+
+    def get(self, idx):
+        data = torch.load(osp.join(self.processed_dir, f'data_{idx}.pt'))
+        return data

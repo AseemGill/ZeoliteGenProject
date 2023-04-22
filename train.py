@@ -6,9 +6,7 @@ import pickle
 
 import pandas as pd
 import random
-# import matplotlib.pyplot as plt
-# from scipy import stats
-# from scipy.spatial import distance
+from torch_geometric.loader import DataLoader
 
 import torch
 import torch.utils.data
@@ -53,21 +51,96 @@ elif args.data == "mesh":
     batch_share = 20
     max_num_nodes_l = 3
     max_num_nodes_g = 120
+
+
+elif args.data == "zeo":
+    max_num_nodes = 432
+    # graphs_whole = pd.read_pickle("Repeated_Cells_1x\\raw\\ZeoGraphs.p")
+    # unit_cell_whole = pd.read_pickle("Repeated_Cells_1x\\raw\\ZeoUnitCells.p")
+    batch_size = 20
+    batch_share = 5 # What is batch sharing?
+    max_num_nodes_l = 12
+    max_num_nodes_g = 36
+    num_per_unit_cell = 60 # How many instances of the same unit cell graph will be included in each training and testing sample 
+    print("Zeo data is being used")
     
-graphs_whole = pd.read_pickle("SynGraphs.p")
-unit_cell_whole = pd.read_pickle("SynUnitCells.p")
-max_num_nodes = 360
-batch_size = 100
-batch_share = 20
-max_num_nodes_l = 3
-max_num_nodes_g = 120
+# graphs_whole = pd.read_pickle("SynGraphs.p")
+# unit_cell_whole = pd.read_pickle("SynUnitCells.p")
+# max_num_nodes = 360
+# batch_size = 100
+# batch_share = 20
+# max_num_nodes_l = 3
+# max_num_nodes_g = 120
 
 epochs = args.epoch
 config = get_config("gran_grid.yaml")
 
 # Make train and test data
-graph_loader = Make_batch_data(num_pad = max_num_nodes, batch_size = batch_size, batch_share = batch_share)
-graph_train, graph_test = graph_loader.makeTrain(dataset = graphs_whole, unit_cell = unit_cell_whole, num_per_unit_cell = 5000)
+graph_dataset = ZeoliteDataset("Repeated_Cells_1x")
+graph_train = DataLoader(graph_dataset,batch_size=batch_size,shuffle=True)
+# graph_loader = Make_batch_data(num_pad = max_num_nodes, batch_size = batch_size, batch_share = batch_share)
+# graph_train, graph_test = graph_loader.makeTrain(dataset = graphs_whole[:270*10], unit_cell = unit_cell_whole[:270*10], num_per_unit_cell = num_per_unit_cell)
+
+# print(graph_train[0][0].shape)
+
+# if args.train == "True":
+#     seed = 666
+#     torch.manual_seed(seed)
+#     torch.cuda.manual_seed(seed)
+#     torch.cuda.manual_seed_all(seed)
+#     np.random.seed(seed)
+#     random.seed(seed)
+#     torch.backends.cudnn.benchmark = False
+#     torch.backends.cudnn.deterministic = True
+        
+#     model = GRANMixtureBernoulli(config = config, max_num_nodes = max_num_nodes, max_num_nodes_l = max_num_nodes_l, max_num_nodes_g = max_num_nodes_g, num_cluster = 4, num_layer = 3, batch_size = batch_size, dim_l = 512, dim_g = 512)
+#     model = DataParallel(model, device_ids=config.gpus).to(config.device)
+    
+#     ################################ Training process #############################
+#     # Set up optimizer
+#     params = filter(lambda p: p.requires_grad, model.parameters())
+#     optimizer = optim.Adam(params, lr=args.lr, weight_decay=0)
+    
+#     # Adjust learning rate
+#     lr_scheduler = optim.lr_scheduler.MultiStepLR(
+#             optimizer,
+#             milestones=[10, 30, 50, 70, 100, 130, 160, 200, 250, 350, 500],
+#             gamma=0.1)
+    
+#     # Save loss values
+#     ## Total loss
+#     total_loss_record = []
+#     ## Reconstruction loss
+#     adj_loss_record = []
+#     ## KL loss
+#     kl_loss_record = []
+#     ## Contrastive loss
+#     reg_loss_record = []
+    
+#     # Training iteration
+#     for epoch in range(epochs):
+#         model.train()
+#         lr_scheduler.step()
+        
+#         # z_l_mu_record = []
+#         # z_g_mu_record = []
+#         # A_pred_record = []
+#         for i in range(len(graph_train)):
+#             optimizer.zero_grad()
+#             total_loss, adj_loss, kl_loss, reg, A_tmp, zl, zg = model(*[(graph_train[i],)])
+            
+#             total_loss_record.append(total_loss.detach().cpu().numpy())
+#             adj_loss_record.append(adj_loss.detach().cpu().numpy())
+#             kl_loss_record.append(kl_loss.detach().cpu().numpy())
+#             reg_loss_record.append(reg.detach().cpu().numpy())
+    
+#             print("epoch: ", epoch, "iter: ", i, "total loss: ", total_loss, "adj loss: ", adj_loss, "kl loss: ", kl_loss, "reg loss: ", reg)
+    
+#             total_loss.backward()
+#             optimizer.step()
+
+
+################
 
 # Initialize model
 if args.train == "True":
@@ -105,24 +178,27 @@ if args.train == "True":
     reg_loss_record = []
     
     # Training iteration
-    for epoch in range(epochs):
+    for epoch in tqdm(range(epochs)):
         model.train()
         lr_scheduler.step()
         
         # z_l_mu_record = []
         # z_g_mu_record = []
         # A_pred_record = []
-        for i in range(len(graph_train)):
+        it = 0
+        for batch in graph_train:
             optimizer.zero_grad()
-            total_loss, adj_loss, kl_loss, reg, A_tmp, zl, zg = model(*[(graph_train[i],)])
+            total_loss, adj_loss, kl_loss, reg, A_tmp, zl, zg = model(*[(batch,)])
             
             total_loss_record.append(total_loss.detach().cpu().numpy())
             adj_loss_record.append(adj_loss.detach().cpu().numpy())
             kl_loss_record.append(kl_loss.detach().cpu().numpy())
             reg_loss_record.append(reg.detach().cpu().numpy())
     
-            print("epoch: ", epoch, "iter: ", i, "total loss: ", total_loss, "adj loss: ", adj_loss, "kl loss: ", kl_loss, "reg loss: ", reg)
-    
+            print("epoch: ", epoch, "iter: ", it, "total loss: ", total_loss, "adj loss: ", adj_loss, "kl loss: ", kl_loss, "reg loss: ", reg)
+
+            it += 1
+            
             total_loss.backward()
             optimizer.step()
     
