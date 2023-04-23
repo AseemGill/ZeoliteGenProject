@@ -81,7 +81,7 @@ max_nodes = 9999
 # os.chdir("./MOF_data")
 zeo_uc = []
 i = 1
-for file in glob.glob("pcod2_new\\raw\\*.cif"): # List of Cifs of files --> glob.glob looks for .json or *<>    
+for file in glob.glob("pcod2_new/raw/*.cif"): # List of Cifs of files --> glob.glob looks for .json or *<>    
     structure = ase.io.read(file) ### Relaxed Structure [No need for ]
     del structure[[atom.index for atom in structure if atom.symbol=='O']] # Removes Oxygens
     distance_matrix = structure.get_all_distances(mic=True) # Generates a pairwise distance matrix for all nodes
