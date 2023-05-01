@@ -158,19 +158,20 @@ class GRANMixtureBernoulli(nn.Module):
         
         
     def ClusterAssign(self, X):
+        print("Cluster Assign X.Shape: {}".format(X.shape))
         nodeCluster = self.MLP_NodeClustering(X)
         nodeClusterIndex = torch.argmax(nodeCluster, dim = 2)
         nodeRowIndex = torch.arange(0, nodeCluster.shape[1])
-        nodeClusterAssign = torch.zeros(self.batch, nodeCluster.shape[1], nodeCluster.shape[2])
+        nodeClusterAssign = torch.zeros(X.shape[0], nodeCluster.shape[1], nodeCluster.shape[2])
         # print("cluster assign: ", nodeClusterAssign.shape)
-        for i in range(self.batch):
+        for i in range(X.shape[0]):
             nodeClusterAssign[i, nodeRowIndex, nodeClusterIndex[i, :]] = 1
             
-        cluster_tmp = torch.zeros(self.batch, self.num_cluster, self.num_cluster)
+        cluster_tmp = torch.zeros(X.shape[0], self.num_cluster, self.num_cluster)
         clusterDegree = torch.sum(nodeClusterAssign, dim = 1)
         clusterDegreeInv = 1 / clusterDegree
         clusterDegreeInv[clusterDegreeInv == float("inf")] = 0
-        for i in range(self.batch):
+        for i in range(X.shape[0]):
             cluster_tmp[i, :, :] = torch.diag(clusterDegreeInv[i, :])
         
         nodeClusterNorm = torch.matmul(cluster_tmp, torch.transpose(nodeClusterAssign, dim0 = 1, dim1 = 2))
@@ -178,8 +179,10 @@ class GRANMixtureBernoulli(nn.Module):
         return nodeClusterNorm
     
     def encoder(self, A, X):
+        print("ENCODER")
+        print(A.shape[0])
         
-        z_l = torch.zeros(self.batch, self.max_num_nodes_w, self.max_num_nodes_w).cuda()
+        z_l = torch.zeros(A.shape[0], self.max_num_nodes_w, self.max_num_nodes_w).cuda()
         i = 0
         for layer in self.gin_l:
             X = layer(A, X)
@@ -188,11 +191,11 @@ class GRANMixtureBernoulli(nn.Module):
         
         z_l = z_l[:, :, self.max_num_nodes_w:].cuda()
         z_l = torch.matmul(self.ClusterAssign(z_l).cuda(), z_l)
-        z_l = z_l.view(self.batch, -1)
+        z_l = z_l.view(X.shape[0], -1)
         z_l_mu = self.mu_l(z_l)
         z_l_sigma = self.sigma_l(z_l)
         
-        z_g = torch.zeros(self.batch, self.max_num_nodes_w, self.max_num_nodes_w).cuda()
+        z_g = torch.zeros(A.shape[0], self.max_num_nodes_w, self.max_num_nodes_w).cuda()
         i = 0
         for layer in self.gin_g:
             X = layer(A, X)
@@ -215,15 +218,15 @@ class GRANMixtureBernoulli(nn.Module):
     # Decoder process
     def decoder(self, z_l, z_g):
 
-        Al = self.LocalPred(z_l).cuda().view(self.batch, self.max_num_nodes_l, -1).cuda()
+        Al = self.LocalPred(z_l).cuda().view(z_l.shape[0], self.max_num_nodes_l, -1).cuda()
         Al = torch.sigmoid(Al).cuda()
 
-        Ag = self.GlobalPred(z_g).cuda().view(self.batch, self.max_num_nodes_g, -1).cuda()
+        Ag = self.GlobalPred(z_g).cuda().view(z_l.shape[0], self.max_num_nodes_g, -1).cuda()
         Ag = torch.sigmoid(Ag).cuda()
         n_g = Ag.shape[1]
         Ag = Ag * (1 - torch.eye(n_g).reshape(1, n_g, -1).repeat(Ag.shape[0], 1, 1).cuda())
 
-        As = self.AsPred(z_l.view(self.batch, 1, -1)).view(self.batch, self.max_num_nodes_l, -1).cuda()
+        As = self.AsPred(z_l.view(z_l.shape[0], 1, -1)).view(z_l.shape[0], self.max_num_nodes_l, -1).cuda()
         As = torch.sigmoid(As).cuda()
 
         n_l = Al.shape[1]
@@ -272,6 +275,8 @@ class GRANMixtureBernoulli(nn.Module):
             X = torch.eye(A.shape[1]).view(1, A.shape[1], -1).repeat(A.shape[0], 1, 1).cuda()
             # print(X.shape)
             # raise Exception("STOP")
+            print("BEFORE VAE\nX Shape: {}\n A Shape: {}\n".format(A.shape,X.shape))
+
             z_l_mu_tmp, z_g_mu_tmp, z_mu_graph, z_sigma_graph, Al_pred, Ag_pred, As_pred, A_pred = self.vae(A, X)
             
             z_l_mu = z_l_mu + (z_l_mu_tmp, )
@@ -288,9 +293,9 @@ class GRANMixtureBernoulli(nn.Module):
         sim_matrix = torch.exp(sim_matrix / T)
         sim_node = torch.sum(sim_matrix, dim = 0)
         if len(graph) > 1:
-            sim_node_tmp = sim_matrix[:self.batch, :self.batch]
+            sim_node_tmp = sim_matrix[:X.shape[0], :X.shape[0]]
             for j in range(len(graph) - 1):
-                sim_node_tmp = torch.cat((sim_node_tmp, sim_matrix[self.batch*(j+1):self.batch*(j+2), self.batch*(j+1):self.batch*(j+2)]), dim = 1)
+                sim_node_tmp = torch.cat((sim_node_tmp, sim_matrix[X.shape[0]*(j+1):X.shape[0]*(j+2), X.shape[0]*(j+1):X.shape[0]*(j+2)]), dim = 1)
             sim_node = sim_node - torch.sum(sim_node_tmp, dim = 0)
  
         sim_node = sim_matrix / sim_node

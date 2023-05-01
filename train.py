@@ -63,6 +63,7 @@ elif args.data == "zeo":
     max_num_nodes_g = 36
     num_per_unit_cell = 60 # How many instances of the same unit cell graph will be included in each training and testing sample 
     print("Zeo data is being used")
+    data_to_use = "test"
     
 # graphs_whole = pd.read_pickle("SynGraphs.p")
 # unit_cell_whole = pd.read_pickle("SynUnitCells.p")
@@ -76,7 +77,7 @@ epochs = args.epoch
 config = get_config("gran_grid.yaml")
 
 # Make train and test data
-graph_dataset = ZeoliteDataset("Repeated_Cells_1x")
+graph_dataset = ZeoliteDataset(data_to_use)
 graph_train = DataLoader(graph_dataset,batch_size=batch_size,shuffle=True)
 # graph_loader = Make_batch_data(num_pad = max_num_nodes, batch_size = batch_size, batch_share = batch_share)
 # graph_train, graph_test = graph_loader.makeTrain(dataset = graphs_whole[:270*10], unit_cell = unit_cell_whole[:270*10], num_per_unit_cell = num_per_unit_cell)
