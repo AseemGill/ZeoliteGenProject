@@ -63,7 +63,7 @@ elif args.data == "zeo":
     max_num_nodes_g = 36
     num_per_unit_cell = 60 # How many instances of the same unit cell graph will be included in each training and testing sample 
     print("Zeo data is being used")
-    data_to_use = "test"
+    data_to_use = "Repeated_Cells_1x"
     
 # graphs_whole = pd.read_pickle("SynGraphs.p")
 # unit_cell_whole = pd.read_pickle("SynUnitCells.p")
