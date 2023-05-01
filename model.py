@@ -158,7 +158,7 @@ class GRANMixtureBernoulli(nn.Module):
         
         
     def ClusterAssign(self, X):
-        print("Cluster Assign X.Shape: {}".format(X.shape))
+        # print("Cluster Assign X.Shape: {}".format(X.shape))
         nodeCluster = self.MLP_NodeClustering(X)
         nodeClusterIndex = torch.argmax(nodeCluster, dim = 2)
         nodeRowIndex = torch.arange(0, nodeCluster.shape[1])
@@ -179,8 +179,8 @@ class GRANMixtureBernoulli(nn.Module):
         return nodeClusterNorm
     
     def encoder(self, A, X):
-        print("ENCODER")
-        print(A.shape[0])
+        # print("ENCODER")
+        # print(A.shape[0])
         
         z_l = torch.zeros(A.shape[0], self.max_num_nodes_w, self.max_num_nodes_w).cuda()
         i = 0
@@ -275,7 +275,7 @@ class GRANMixtureBernoulli(nn.Module):
             X = torch.eye(A.shape[1]).view(1, A.shape[1], -1).repeat(A.shape[0], 1, 1).cuda()
             # print(X.shape)
             # raise Exception("STOP")
-            print("BEFORE VAE\nX Shape: {}\n A Shape: {}\n".format(A.shape,X.shape))
+            # print("BEFORE VAE\nX Shape: {}\n A Shape: {}\n".format(A.shape,X.shape))
 
             z_l_mu_tmp, z_g_mu_tmp, z_mu_graph, z_sigma_graph, Al_pred, Ag_pred, As_pred, A_pred = self.vae(A, X)
             
