@@ -1,9 +1,13 @@
 To-DO
 
-- Reconfigure code to use PyG
-- Indentify max graph size and max unit cell size
+- Run small test on compute node
+- Remove the prefix... files created during dataset call
+
 Max_graph = 432
 Max_UC = 16
+
+
+
 
 Notes
 - Ignoring batch sharing for now
