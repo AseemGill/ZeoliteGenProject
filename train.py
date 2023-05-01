@@ -23,7 +23,9 @@ import os
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data', type=str, default="synthetic")
+parser.add_argument('--graphfile', type=str, default="Already Added")
+parser.add_argument('--ucfile', type=str, default="Already Added")
+parser.add_argument('--folder', type=str, default="zeo")
 parser.add_argument('--train', type=str, default="True")
 parser.add_argument('--eval', type=str, default="False")
 # parser.add_argument('--batch_size', type=int, default=4)
@@ -32,52 +34,31 @@ parser.add_argument('--lr', type=float, default=0.001)
 
 args = parser.parse_args()
 print(f'Agrs: {args}')
-file_name = args.data + "_train.pt"
-# Load data and configurations
-if args.data == "qmof":
-    graphs_whole = pd.read_pickle("MOFGraphs.p")
-    unit_cell_whole = pd.read_pickle("MOFUnitCells.p")
-    max_num_nodes = 360
-    batch_size = 100
-    batch_share = 20
-    max_num_nodes_l = 30
-    max_num_nodes_g = 12
+file_name = args.folder + "_train.pt"
 
-elif args.data == "mesh":
-    graphs_whole = pd.read_pickle("MeshSegGraphs.p")
-    unit_cell_whole = pd.read_pickle("MeshSegUnitCells.p")
-    max_num_nodes = 360
-    batch_size = 100
-    batch_share = 20
-    max_num_nodes_l = 3
-    max_num_nodes_g = 120
-
-
-elif args.data == "zeo":
-    max_num_nodes = 432
-    # graphs_whole = pd.read_pickle("Repeated_Cells_1x\\raw\\ZeoGraphs.p")
-    # unit_cell_whole = pd.read_pickle("Repeated_Cells_1x\\raw\\ZeoUnitCells.p")
-    batch_size = 20
-    batch_share = 5 # What is batch sharing?
-    max_num_nodes_l = 12
-    max_num_nodes_g = 36
-    num_per_unit_cell = 60 # How many instances of the same unit cell graph will be included in each training and testing sample 
-    print("Zeo data is being used")
-    data_to_use = "Repeated_Cells_1x"
-    
-# graphs_whole = pd.read_pickle("SynGraphs.p")
-# unit_cell_whole = pd.read_pickle("SynUnitCells.p")
-# max_num_nodes = 360
-# batch_size = 100
-# batch_share = 20
-# max_num_nodes_l = 3
-# max_num_nodes_g = 120
-
+max_num_nodes = 432
+batch_size = 20
+batch_share = 5 # What is batch sharing?
+max_num_nodes_l = 12
+max_num_nodes_g = 36
+num_per_unit_cell = 60 # How many instances of the same unit cell graph will be included in each training and testing sample 
+print("Zeo data is being used")
+datafolder = "data/" + args.folder
+graphfile = args.graphfile
+ucfile = args.ucfile
 epochs = args.epoch
 config = get_config("gran_grid.yaml")
 
+if args.folder != "Already Added":
+    
+    if not os.path.isdir(datafolder + "/processed"):
+        os.mkdir(datafolder + "/processed")
+
+    if not os.path.isdir(datafolder + "/raw"):
+        os.mkdir(datafolder + "/raw")
+
 # Make train and test data
-graph_dataset = ZeoliteDataset(data_to_use)
+graph_dataset = ZeoliteDataset(datafolder)
 graph_train = DataLoader(graph_dataset,batch_size=batch_size,shuffle=True)
 # graph_loader = Make_batch_data(num_pad = max_num_nodes, batch_size = batch_size, batch_share = batch_share)
 # graph_train, graph_test = graph_loader.makeTrain(dataset = graphs_whole[:270*10], unit_cell = unit_cell_whole[:270*10], num_per_unit_cell = num_per_unit_cell)
