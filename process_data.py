@@ -10,6 +10,9 @@ print(f'Agrs: {args}')
 
 datafolder = "data/" + args.data
 
+if not os.path.exists(datafolder + "/processed"):
+    os.mkdir(datafolder + "/processed")
+
 graph_dataset = ZeoliteDataset(datafolder)
 
 os.remove(datafolder + "/processed/pre_filter.pt")

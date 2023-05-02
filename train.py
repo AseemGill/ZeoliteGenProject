@@ -168,6 +168,7 @@ if args.train == "True":
         # z_g_mu_record = []
         # A_pred_record = []
         it = 0
+
         for batch in graph_train:
             optimizer.zero_grad()
             total_loss, adj_loss, kl_loss, reg, A_tmp, zl, zg = model(*[(batch,)])
@@ -177,7 +178,6 @@ if args.train == "True":
             kl_loss_record.append(kl_loss.detach().cpu().numpy())
             reg_loss_record.append(reg.detach().cpu().numpy())
     
-            print("epoch: ", epoch, "iter: ", it, "total loss: ", total_loss, "adj loss: ", adj_loss, "kl loss: ", kl_loss, "reg loss: ", reg)
 
             it += 1
             
@@ -190,6 +190,9 @@ if args.train == "True":
                         'model_state_dict': model.state_dict(),
                         'optimizer_state_dict': optimizer.state_dict(),
                         }, file_name)
+            
+        print("epoch: ", epoch, "iter: ", it, "total loss: ", total_loss, "adj loss: ", adj_loss, "kl loss: ", kl_loss, "reg loss: ", reg)
+
 
 if args.eval == "True":
     print(file_name)
