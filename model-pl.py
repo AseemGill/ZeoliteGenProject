@@ -346,7 +346,7 @@ if __name__ == "__main__":
     parser.add_argument('--folder', type=str, default="test")
     parser.add_argument('--gpus', type=int, default=1)
     parser.add_argument('--config', type=str, default="one-gpu.yaml")
-    parser.add_argument('--debug', type=str, default="False")
+    parser.add_argument('--debug', type=bool, default=False)
     parser.add_argument('--epochs', type=int, default=100)
 
     args = parser.parse_args()
