@@ -31,6 +31,8 @@ parser.add_argument('--eval', type=str, default="False")
 # parser.add_argument('--batch_size', type=int, default=4)
 parser.add_argument('--epoch', type=int, default=50)
 parser.add_argument('--lr', type=float, default=0.001)
+parser.add_argument('--config', type=str, default="one-gpu.yaml")
+
 
 args = parser.parse_args()
 print(f'Agrs: {args}')
@@ -47,7 +49,7 @@ datafolder = "data/" + args.folder
 graphfile = args.graphfile
 ucfile = args.ucfile
 epochs = args.epoch
-config = get_config("gran_grid.yaml")
+config = get_config(args.config)
 
 if args.folder != "Already Added":
     
@@ -123,7 +125,10 @@ graph_train = DataLoader(graph_dataset,batch_size=batch_size,shuffle=True)
 
 
 ################
+print(get_config)
 
+print(config.gpus)
+print(config.device)
 # Initialize model
 if args.train == "True":
     seed = 666
@@ -134,9 +139,11 @@ if args.train == "True":
     random.seed(seed)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
-        
+    
     model = GRANMixtureBernoulli(config = config, max_num_nodes = max_num_nodes, max_num_nodes_l = max_num_nodes_l, max_num_nodes_g = max_num_nodes_g, num_cluster = 4, num_layer = 3, batch_size = batch_size, dim_l = 512, dim_g = 512)
     model = DataParallel(model, device_ids=config.gpus).to(config.device)
+
+ 
     
     ################################ Training process #############################
     # Set up optimizer
