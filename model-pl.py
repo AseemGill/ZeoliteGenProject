@@ -33,7 +33,7 @@ class GINLayer(pl.LightningModule):
         self.MLP_GIN = nn.Sequential(
             nn.Linear(self.num_feature, self.num_feature),
             nn.ReLU()
-            ).cuda()
+            )
         
     def forward(self, A, X):
         X_tmp = (1+self.eps)*X + torch.matmul(A, X)
@@ -87,7 +87,7 @@ class GRU_plain(pl.LightningModule):
         if self.has_output:
             output_raw = self.output(output_raw)
         # return hidden state at each time step
-        return output_raw.cuda()
+        return output_raw
 
 class GRANMixtureBernoulli(pl.LightningModule):
     def __init__(self, config, max_num_nodes, max_num_nodes_l, max_num_nodes_g, num_cluster, num_layer, batch_size, dim_l, dim_g):
@@ -104,11 +104,11 @@ class GRANMixtureBernoulli(pl.LightningModule):
 
         # Encoder     
         ## GIN for local and global filters
-        self.eps_l = nn.Parameter(torch.zeros(self.num_layer_w)).cuda()
+        self.eps_l = nn.Parameter(torch.zeros(self.num_layer_w))
         self.gin_l = torch.nn.ModuleList()
         for i in range(self.num_layer_w):
             self.gin_l.append(GINLayer(self.max_num_nodes_w, self.batch, self.eps_l[i]))
-        self.eps_g = nn.Parameter(torch.zeros(self.num_layer_w)).cuda()
+        self.eps_g = nn.Parameter(torch.zeros(self.num_layer_w))
         self.gin_g = torch.nn.ModuleList()
         for i in range(self.num_layer_w):
             self.gin_g.append(GINLayer(self.max_num_nodes_w, self.batch, self.eps_g[i]))
@@ -142,7 +142,7 @@ class GRANMixtureBernoulli(pl.LightningModule):
             nn.Linear(self.max_num_nodes_w * self.num_layer_w, self.num_cluster),
             nn.ReLU(),
             nn.BatchNorm1d(self.max_num_nodes_w),
-            nn.Softmax(dim = 1)).cuda()
+            nn.Softmax(dim = 1))
         
         # Decoder
         # Import parameters
@@ -195,57 +195,57 @@ class GRANMixtureBernoulli(pl.LightningModule):
         # print("ENCODER")
         # print(A.shape[0])
         
-        z_l = torch.zeros(A.shape[0], self.max_num_nodes_w, self.max_num_nodes_w).cuda()
+        z_l = torch.zeros(A.shape[0], self.max_num_nodes_w, self.max_num_nodes_w)
         i = 0
         for layer in self.gin_l:
             X = layer(A, X)
             z_l = torch.cat((z_l, X), dim = 2)
             i = i + 1
         
-        z_l = z_l[:, :, self.max_num_nodes_w:].cuda()
-        z_l = torch.matmul(self.ClusterAssign(z_l).cuda(), z_l)
+        z_l = z_l[:, :, self.max_num_nodes_w:]
+        z_l = torch.matmul(self.ClusterAssign(z_l), z_l)
         z_l = z_l.view(X.shape[0], -1)
         z_l_mu = self.mu_l(z_l)
         z_l_sigma = self.sigma_l(z_l)
         
-        z_g = torch.zeros(A.shape[0], self.max_num_nodes_w, self.max_num_nodes_w).cuda()
+        z_g = torch.zeros(A.shape[0], self.max_num_nodes_w, self.max_num_nodes_w)
         i = 0
         for layer in self.gin_g:
             X = layer(A, X)
             z_g = torch.cat((z_g, X), dim = 2)
             i = i + 1
         
-        z_g = z_g[:, :, self.max_num_nodes_w:].cuda()
+        z_g = z_g[:, :, self.max_num_nodes_w:]
         z_g = torch.sum(z_g, dim = 1)
         z_g_mu = self.mu_g(z_g)
         z_g_sigma = self.sigma_g(z_g)
         
-        z_l_graph = z_l_mu + torch.randn(z_l_sigma.size()).cuda() * torch.exp(z_l_sigma)
-        z_g_graph = z_g_mu + torch.randn(z_g_sigma.size()).cuda() * torch.exp(z_g_sigma)
+        z_l_graph = z_l_mu + torch.randn(z_l_sigma.size()) * torch.exp(z_l_sigma)
+        z_g_graph = z_g_mu + torch.randn(z_g_sigma.size()) * torch.exp(z_g_sigma)
         
         z_sigma_graph = torch.cat((z_l_sigma, z_g_sigma), dim = 1)
         z_mu_graph = torch.cat((z_l_mu, z_g_mu), dim = 1)
 
-        return z_l_graph.cuda(), z_g_graph.cuda(), z_l_mu.cuda(), z_g_mu.cuda(), z_mu_graph.cuda(), z_sigma_graph.cuda()
+        return z_l_graph, z_g_graph, z_l_mu, z_g_mu, z_mu_graph, z_sigma_graph
     
     # Decoder process
     def decoder(self, z_l, z_g):
 
-        Al = self.LocalPred(z_l).cuda().view(z_l.shape[0], self.max_num_nodes_l, -1).cuda()
-        Al = torch.sigmoid(Al).cuda()
+        Al = self.LocalPred(z_l).view(z_l.shape[0], self.max_num_nodes_l, -1)
+        Al = torch.sigmoid(Al)
 
-        Ag = self.GlobalPred(z_g).cuda().view(z_l.shape[0], self.max_num_nodes_g, -1).cuda()
-        Ag = torch.sigmoid(Ag).cuda()
+        Ag = self.GlobalPred(z_g).view(z_l.shape[0], self.max_num_nodes_g, -1)
+        Ag = torch.sigmoid(Ag)
         n_g = Ag.shape[1]
-        Ag = Ag * (1 - torch.eye(n_g).reshape(1, n_g, -1).repeat(Ag.shape[0], 1, 1).cuda())
+        Ag = Ag * (1 - torch.eye(n_g).reshape(1, n_g, -1).repeat(Ag.shape[0], 1, 1))
 
-        As = self.AsPred(z_l.view(z_l.shape[0], 1, -1)).view(z_l.shape[0], self.max_num_nodes_l, -1).cuda()
-        As = torch.sigmoid(As).cuda()
+        As = self.AsPred(z_l.view(z_l.shape[0], 1, -1)).view(z_l.shape[0], self.max_num_nodes_l, -1)
+        As = torch.sigmoid(As)
 
         n_l = Al.shape[1]
         
         Al_tmp = torch.tile(Al, (n_g, n_g))
-        Al_mask = torch.eye(n_g).reshape(1, n_g, -1).repeat(Al.shape[0], 1, 1).cuda()
+        Al_mask = torch.eye(n_g).reshape(1, n_g, -1).repeat(Al.shape[0], 1, 1)
         Al_mask = torch.repeat_interleave(Al_mask, n_l, dim = 1)
         Al_mask = torch.repeat_interleave(Al_mask, n_l, dim = 2)
         A_tmp = Al_tmp * Al_mask
@@ -286,9 +286,9 @@ class GRANMixtureBernoulli(pl.LightningModule):
         for i in range(len(graph)):
             # A is the Adjaency matrix of the graph
             # X is an identity matrix with teh same dimensions
-            A = graph[i].cuda()
+            A = graph[i]
             # print(A.shape[0])
-            X = torch.eye(A.shape[1]).view(1, A.shape[1], -1).repeat(A.shape[0], 1, 1).cuda()
+            X = torch.eye(A.shape[1]).view(1, A.shape[1], -1).repeat(A.shape[0], 1, 1)
             # print(X.shape)
             # raise Exception("STOP")
             # print("BEFORE VAE\nX Shape: {}\n A Shape: {}\n".format(A.shape,X.shape))
@@ -315,10 +315,10 @@ class GRANMixtureBernoulli(pl.LightningModule):
             sim_node = sim_node - torch.sum(sim_node_tmp, dim = 0)
  
         sim_node = sim_matrix / sim_node
-        regularization = - torch.log(sim_node).mean().cuda()            
+        regularization = - torch.log(sim_node).mean()    
         
         # Total loss
-        total_loss = 100000000*adj_loss.cuda() + 1000000*kl_loss.cuda() + 10000000*regularization
+        total_loss = 100000000*adj_loss + 1000000*kl_loss + 10000000*regularization
         # Output
         return total_loss, adj_loss, kl_loss, regularization, A_gen, z_l_mu, z_g_mu
     
