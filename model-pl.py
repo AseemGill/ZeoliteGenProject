@@ -237,7 +237,7 @@ class GRANMixtureBernoulli(pl.LightningModule):
         z_sigma_graph = torch.cat((z_l_sigma, z_g_sigma), dim = 1)
         z_mu_graph = torch.cat((z_l_mu, z_g_mu), dim = 1)
 
-        print("ENCODER END")
+        # print("ENCODER END")
 
         return z_l_graph.type_as(A), z_g_graph.type_as(A), z_l_mu.type_as(A), z_g_mu.type_as(A), z_mu_graph.type_as(A), z_sigma_graph.type_as(A)
     
@@ -272,7 +272,7 @@ class GRANMixtureBernoulli(pl.LightningModule):
         
         A_pred = Ag_tmp * As_tmp + torch.transpose(Ag_tmp * As_tmp, dim0=1, dim1=2).type_as(Ag) + A_tmp
 
-        print("DECODER END")
+        # print("DECODER END")
 
         return Al, Ag, As, A_pred
 
@@ -318,7 +318,7 @@ class GRANMixtureBernoulli(pl.LightningModule):
             z_g_mu = z_g_mu + (z_g_mu_tmp, )
             kl_loss = kl_loss + torch.mean(-(0.5) * (1 + z_sigma_graph - z_mu_graph**2 - torch.exp(z_sigma_graph) ** 2))
             adj_loss = adj_loss + F.binary_cross_entropy(A_pred, A)
-            print("KL and ADJ Loss")
+            # print("KL and ADJ Loss")
             A_gen.append(A_pred.detach().cpu().numpy())
             
         # z_l_mu = torch.cat(z_l_mu, dim = 0).cpu()
