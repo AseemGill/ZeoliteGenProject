@@ -415,8 +415,8 @@ if __name__ == "__main__":
 
     # default logger used by trainer (if tensorboard is installed)
     # logger = TensorBoardLogger(save_dir=os.getcwd(), version=1, name="lightning_logs")
-    trainer = pl.Trainer(max_epochs=args.epochs, accelerator="gpu",default_root_dir=args.save_path, callbacks=checkpoint_callback)
-    # trainer = pl.Trainer(fast_dev_run=args.debug,devices=args.gpus, accelerator="gpu", strategy='ddp_find_unused_parameters_true',max_epochs=args.epochs,default_root_dir=args.save_path)
+    # trainer = pl.Trainer(max_epochs=args.epochs, accelerator="gpu",default_root_dir=args.save_path, callbacks=checkpoint_callback)
+    trainer = pl.Trainer(fast_dev_run=args.debug,devices=args.gpus, accelerator="gpu", strategy='ddp_find_unused_parameters_true',max_epochs=args.epochs,default_root_dir=args.save_path)
     # model.hparams.batch_size = args.batch_size
     print(type(model))
     print(trainer.accelerator)
