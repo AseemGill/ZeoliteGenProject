@@ -14,7 +14,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from arg_helper import *
-from model import *
+from model_torch import *
 # from args import *
 from data import *
 from data_parallel import *

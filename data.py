@@ -17,7 +17,7 @@ from random import shuffle
 import shutil
 import os
 import time
-from model import *
+from model_torch import *
 from utils import *
 import os.path as osp
 from torch_geometric.data import Dataset
