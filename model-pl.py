@@ -351,7 +351,6 @@ class GRANMixtureBernoulli(pl.LightningModule):
     
 
 max_num_nodes = 432
-batch_size = 20
 batch_share = 5 # What is batch sharing?
 max_num_nodes_l = 12
 max_num_nodes_g = 36
@@ -368,6 +367,8 @@ if __name__ == "__main__":
     parser.add_argument('--config', type=str, default="one-gpu.yaml")
     parser.add_argument('--debug', type=bool, default=False)
     parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--batch_size', type=int, default=20)
+    parser.add_argument('--cpus', type=int, default=8)
 
     args = parser.parse_args()
     print(f'Agrs: {args}')
@@ -375,8 +376,10 @@ if __name__ == "__main__":
 
     datafolder = "data/" + args.folder
 
+    batch_size = args.batch_size
+
     graph_dataset = ZeoliteDataset(datafolder)
-    graph_train = DataLoader(graph_dataset,batch_size=batch_size,shuffle=True)
+    graph_train = DataLoader(graph_dataset,batch_size=batch_size,shuffle=True,num_workers=args.cpus)
 
     # for i in graph_train:
     #     print(i.get_device())
@@ -384,6 +387,7 @@ if __name__ == "__main__":
     model = GRANMixtureBernoulli(config = config, max_num_nodes = max_num_nodes, max_num_nodes_l = max_num_nodes_l, max_num_nodes_g = max_num_nodes_g, num_cluster = 4, num_layer = 3, batch_size = batch_size, dim_l = 512, dim_g = 512)
     # trainer = pl.Trainer(max_epochs=args.epochs, accelerator="gpu")
     trainer = pl.Trainer(fast_dev_run=args.debug,devices=args.gpus, accelerator="gpu", strategy='ddp_find_unused_parameters_true',max_epochs=args.epochs)
+    # model.hparams.batch_size = args.batch_size
     print(type(model))
     print(trainer.accelerator)
     trainer.fit(model, train_dataloaders=graph_train)
