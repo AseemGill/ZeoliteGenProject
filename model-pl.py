@@ -344,6 +344,9 @@ class GRANMixtureBernoulli(pl.LightningModule):
     
     def training_step(self, batch, batch_idx):
         total_loss, adj_loss, kl_loss, reg, A_tmp, zl, zg = self(*[(batch,)])
+        values = {"total_loss": total_loss, "adj_loss": adj_loss, "kl_loss": kl_loss, "reg" : reg}
+        # self.log_dict(values)
+        self.log("total_loss", total_loss)
         return total_loss
     
     def configure_optimizers(self):
@@ -370,6 +373,11 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=20)
     parser.add_argument('--cpus', type=int, default=8)
 
+    experiment_no = len(os.listdir("checkpoints")) + 1
+    default_save = "checkpoints/exp{}".format(experiment_no)
+    parser.add_argument('--save_path', type=str, default=default_save)
+    parser.add_argument('--filename', type=str, default="test")
+
     args = parser.parse_args()
     print(f'Agrs: {args}')
     config = get_config(args.config)
@@ -378,6 +386,8 @@ if __name__ == "__main__":
 
     batch_size = args.batch_size
 
+
+
     graph_dataset = ZeoliteDataset(datafolder)
     graph_train = DataLoader(graph_dataset,batch_size=batch_size,shuffle=True,num_workers=args.cpus)
 
@@ -385,8 +395,28 @@ if __name__ == "__main__":
     #     print(i.get_device())
 
     model = GRANMixtureBernoulli(config = config, max_num_nodes = max_num_nodes, max_num_nodes_l = max_num_nodes_l, max_num_nodes_g = max_num_nodes_g, num_cluster = 4, num_layer = 3, batch_size = batch_size, dim_l = 512, dim_g = 512)
-    # trainer = pl.Trainer(max_epochs=args.epochs, accelerator="gpu")
-    trainer = pl.Trainer(fast_dev_run=args.debug,devices=args.gpus, accelerator="gpu", strategy='ddp_find_unused_parameters_true',max_epochs=args.epochs)
+    from pytorch_lightning.callbacks import ModelCheckpoint
+    # from lightning.pytorch.loggers import CSVLogger
+
+    # DEFAULTS used by the Trainer
+    checkpoint_callback = ModelCheckpoint(
+        dirpath =args.save_path,
+        filename=args.filename,
+        every_n_epochs =2,
+        verbose=True,
+        monitor='total_loss',
+        save_top_k = args.epochs//5,
+    )
+
+    print(args.save_path)
+
+    # logger = CSVLogger(save_dir=args.save_path,flush_logs_every_n_steps=1)
+    # from lightning.pytorch.loggers import TensorBoardLogger
+
+    # default logger used by trainer (if tensorboard is installed)
+    # logger = TensorBoardLogger(save_dir=os.getcwd(), version=1, name="lightning_logs")
+    trainer = pl.Trainer(max_epochs=args.epochs, accelerator="gpu",default_root_dir=args.save_path, callbacks=checkpoint_callback)
+    # trainer = pl.Trainer(fast_dev_run=args.debug,devices=args.gpus, accelerator="gpu", strategy='ddp_find_unused_parameters_true',max_epochs=args.epochs,default_root_dir=args.save_path)
     # model.hparams.batch_size = args.batch_size
     print(type(model))
     print(trainer.accelerator)
