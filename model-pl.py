@@ -364,6 +364,9 @@ if __name__ == "__main__":
 
     import argparse
 
+    if not os.path.exists("checkpoints"):
+        os.mkdir("checkpoints")
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--folder', type=str, default="test")
     parser.add_argument('--gpus', type=int, default=1)
@@ -385,9 +388,6 @@ if __name__ == "__main__":
     datafolder = "data/" + args.folder
 
     batch_size = args.batch_size
-
-
-
     graph_dataset = ZeoliteDataset(datafolder)
     graph_train = DataLoader(graph_dataset,batch_size=batch_size,shuffle=True,num_workers=args.cpus)
 
