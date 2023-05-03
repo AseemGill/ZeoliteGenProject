@@ -114,7 +114,7 @@ class GRANMixtureBernoulli(pl.LightningModule):
             self.gin_l.append(GINLayer(self.max_num_nodes_w, self.batch, self.eps_l[i]))
         # self.eps_g = nn.Parameter(torch.zeros(self.num_layer_w))
         self.register_buffer("eps_g", nn.Parameter(torch.zeros(self.num_layer_w)))
-        
+
         self.gin_g = torch.nn.ModuleList()
         for i in range(self.num_layer_w):
             self.gin_g.append(GINLayer(self.max_num_nodes_w, self.batch, self.eps_g[i]))
@@ -382,8 +382,8 @@ if __name__ == "__main__":
         print(i.get_device())
 
     model = GRANMixtureBernoulli(config = config, max_num_nodes = max_num_nodes, max_num_nodes_l = max_num_nodes_l, max_num_nodes_g = max_num_nodes_g, num_cluster = 4, num_layer = 3, batch_size = batch_size, dim_l = 512, dim_g = 512)
-    trainer = pl.Trainer(max_epochs=args.epochs, accelerator="gpu")
-    # trainer = pl.Trainer(fast_dev_run=args.debug,devices=args.gpus, accelerator="gpu", strategy="ddp",max_epochs=args.epochs)
+    # trainer = pl.Trainer(max_epochs=args.epochs, accelerator="gpu")
+    trainer = pl.Trainer(fast_dev_run=args.debug,devices=args.gpus, accelerator="gpu", strategy="ddp",max_epochs=args.epochs)
     print(type(model))
     print(trainer.accelerator)
     trainer.fit(model, train_dataloaders=graph_train)
