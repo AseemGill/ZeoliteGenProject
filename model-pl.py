@@ -378,8 +378,8 @@ if __name__ == "__main__":
     graph_dataset = ZeoliteDataset(datafolder)
     graph_train = DataLoader(graph_dataset,batch_size=batch_size,shuffle=True)
 
-    for i in graph_train:
-        print(i.get_device())
+    # for i in graph_train:
+    #     print(i.get_device())
 
     model = GRANMixtureBernoulli(config = config, max_num_nodes = max_num_nodes, max_num_nodes_l = max_num_nodes_l, max_num_nodes_g = max_num_nodes_g, num_cluster = 4, num_layer = 3, batch_size = batch_size, dim_l = 512, dim_g = 512)
     # trainer = pl.Trainer(max_epochs=args.epochs, accelerator="gpu")
