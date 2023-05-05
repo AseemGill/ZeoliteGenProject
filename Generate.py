@@ -1,4 +1,7 @@
 from __future__ import unicode_literals, print_function, division
+import os
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1" 
+os.environ["TORCH_USE_CUDA_DSA"] = "1" 
 
 import torch
 import torch.nn as nn
@@ -19,10 +22,6 @@ from evaluation import *
 from torch_geometric.loader import DataLoader
 
 from torch import distributed as dist
-# torch.distributed.init_process_group(
-#     backend='gloo',
-#     init_method='env://'
-# )
 
 class GINLayer(pl.LightningModule):
     def __init__(self, num_feature, batch_size, eps):
@@ -309,6 +308,9 @@ class GRANMixtureBernoulli(pl.LightningModule):
             # print(A.shape[0])
             X = torch.eye(A.shape[1]).view(1, A.shape[1], -1).repeat(A.shape[0], 1, 1)
             X = X.type_as(A)
+
+            print(A.get_device())
+            print(X.get_device())
             # print(X.shape)
             # raise Exception("STOP")
             # print("BEFORE VAE\nX Shape: {}\n A Shape: {}\n".format(A.shape,X.shape))
@@ -318,10 +320,15 @@ class GRANMixtureBernoulli(pl.LightningModule):
             z_l_mu = z_l_mu + (z_l_mu_tmp, )
             z_g_mu = z_g_mu + (z_g_mu_tmp, )
             kl_loss = kl_loss + torch.mean(-(0.5) * (1 + z_sigma_graph - z_mu_graph**2 - torch.exp(z_sigma_graph) ** 2))
+            print(A_pred.shape)
+            print(A.shape)
             adj_loss = adj_loss + F.binary_cross_entropy(A_pred, A)
             # print("KL and ADJ Loss")
-            A_gen.append(A_pred.detach().cpu().numpy())
-            
+
+            print(A_pred)
+        return A_pred
+        A_gen.append(A_pred)
+        
         # z_l_mu = torch.cat(z_l_mu, dim = 0).cpu()
         z_g_mu = torch.cat(z_g_mu, dim = 0)
         z_l_mu = torch.cat(z_l_mu, dim = 0)
@@ -348,111 +355,40 @@ class GRANMixtureBernoulli(pl.LightningModule):
         values = {"total_loss": total_loss, "adj_loss": adj_loss, "kl_loss": kl_loss, "reg" : reg}
         # self.log_dict(values)
         self.log("total_loss", total_loss)
-        with open('result.txt', 'a') as f:
-            f.write("\nEpoch {} Iter {}\t".format(self.current_epoch,self.global_step))
-            f.write(str(float(total_loss)))
-            f.write("\t")
-            f.write(str(float(adj_loss)))
-            f.write("\t")
-            f.write(str(float(kl_loss)))
-            f.write("\t")
-            f.write(str(float(reg)))
         return total_loss
     
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
         return optimizer
-    def on_train_epoch_end(self):
-        with open('result.txt', 'a') as f:
-            f.write("\nEPOCH DONE\t")
-    
 
+max_num_nodes = 432
+batch_size = 1 # What is batch sharing?
+max_num_nodes_l = 12
+max_num_nodes_g = 36
+num_per_unit_cell = 60 # How many instances of the same unit cell graph will be included in each training and testing sample 
+config = get_config("one-gpu.yaml")
+# model = GRANMixtureBernoulli(config = config, max_num_nodes = max_num_nodes, max_num_nodes_l = max_num_nodes_l, max_num_nodes_g = max_num_nodes_g, num_cluster = 4, num_layer = 3, batch_size = batch_size, dim_l = 512, dim_g = 512)
+model = GRANMixtureBernoulli.load_from_checkpoint("checkpoints\\exp3\\test-v61.ckpt",config = config, max_num_nodes = max_num_nodes, max_num_nodes_l = max_num_nodes_l, max_num_nodes_g = max_num_nodes_g, num_cluster = 4, num_layer = 3, batch_size = batch_size, dim_l = 512, dim_g = 512)
 
-max_num_nodes = 360
-batch_size = 100
-batch_share = 20
-max_num_nodes_l = 3
-max_num_nodes_g = 120
+model = model.eval()
 
-# max_num_nodes = 432
-# batch_share = 5 # What is batch sharing?
-# max_num_nodes_l = 12
-# max_num_nodes_g = 36
-# num_per_unit_cell = 60 # How many instances of the same unit cell graph will be included in each training and testing sample 
+x = torch.rand(1,1,432,432)
 
+x = (x > 0.5).float()
+x = x.cuda()
 
-if __name__ == "__main__":
-    seed = 666
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    np.random.seed(seed)
-    random.seed(seed)
+print(x)
 
-    import argparse
+with torch.no_grad():
+    y_hat = model(x)
+# y = model(x)
 
-    if not os.path.exists("checkpoints"):
-        os.mkdir("checkpoints")
+print(y_hat)
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--folder', type=str, default="test")
-    parser.add_argument('--gpus', type=int, default=1)
-    parser.add_argument('--config', type=str, default="one-gpu.yaml")
-    parser.add_argument('--debug', type=bool, default=False)
-    parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--batch_size', type=int, default=100)
-    parser.add_argument('--cpus', type=int, default=8)
+# trainer = pl.Trainer(accelerator="cpu")
 
-    experiment_no = len(os.listdir("checkpoints")) + 1
-    default_save = "checkpoints/exp{}".format(experiment_no)
-    parser.add_argument('--save_path', type=str, default=default_save)
-    parser.add_argument('--filename', type=str, default="test")
+# # (2) test using a specific checkpoint
+# trainer.test(ckpt_path="checkpoints\\exp3\\test-v61.ckpt")
 
-    args = parser.parse_args()
-    print(f'Agrs: {args}')
-    config = get_config(args.config)
-
-    datafolder = "data/" + args.folder
-
-    batch_size = args.batch_size
-    graph_dataset = ZeoliteDataset(datafolder)
-    graph_train = DataLoader(graph_dataset,batch_size=batch_size,shuffle=True,num_workers=args.cpus)
-
-    for i in graph_train:
-        max_num_nodes = i.shape[-1]
-        print(max_num_nodes)
-        break
-
-    model = GRANMixtureBernoulli(config = config, max_num_nodes = max_num_nodes, max_num_nodes_l = max_num_nodes_l, max_num_nodes_g = max_num_nodes_g, num_cluster = 4, num_layer = 3, batch_size = batch_size, dim_l = 512, dim_g = 512)
-    from pytorch_lightning.callbacks import ModelCheckpoint
-    # from lightning.pytorch.loggers import CSVLogger
-
-    # DEFAULTS used by the Trainer
-    checkpoint_callback = ModelCheckpoint(
-        dirpath =args.save_path,
-        filename=args.filename,
-        every_n_epochs =2,
-        verbose=True,
-        monitor='total_loss',
-        save_top_k = args.epochs//10,
-        mode="min"
-    )
-
-    print(args.save_path)
-
-    # logger = CSVLogger(save_dir=args.save_path,flush_logs_every_n_steps=1)
-    # from lightning.pytorch.loggers import TensorBoardLogger
-
-    # default logger used by trainer (if tensorboard is installed)
-    # logger = TensorBoardLogger(save_dir=os.getcwd(), version=1, name="lightning_logs")
-    trainer = pl.Trainer(max_epochs=args.epochs, accelerator="gpu",default_root_dir=args.save_path, callbacks=checkpoint_callback)
-    # trainer = pl.Trainer(fast_dev_run=args.debug,devices=args.gpus, accelerator="gpu", strategy='ddp_find_unused_parameters_true',max_epochs=args.epochs,default_root_dir=args.save_path,callbacks=checkpoint_callback)
-    # model.hparams.batch_size = args.batch_size
-    print(type(model))
-    print(trainer.accelerator)
-    trainer.fit(model, train_dataloaders=graph_train)
-    # model = model.cuda()
-    # x = torch.randn((2,432,432)).cuda()
-    # print(x)
-    # out = model(x)
-    # print(out)
+# # (3) test with an explicit model (will use this model and not load a checkpoint)
+# trainer.test(model)

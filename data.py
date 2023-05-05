@@ -397,3 +397,56 @@ class ZeoliteDataset(Dataset):
         return data
     
 
+class Zeolite_32_Dataset(Dataset):
+    def __init__(self, root, transform=None, pre_transform=None, pre_filter=None):
+        super(Zeolite_32_Dataset, self).__init__(root, transform, pre_transform, pre_filter)
+
+    @property
+    def raw_file_names(self):
+        return ['ZeoGraphs.p', 'ZeoUnitCells.']
+
+    @property
+    def processed_file_names(self):
+        return os.listdir(self.processed_dir)
+    
+    def download(self):
+        pass
+    
+    def process(self):
+        idx = 0
+        self.graphs = pd.read_pickle(self.raw_paths[0])
+        max_graph_size = 360
+        
+        # for graph in self.graphs:
+        #     if max_graph_size < (graph.number_of_nodes()):
+        #         max_graph_size = (graph.number_of_nodes())
+        #         # print(max_graph_size)
+
+
+        if  not os.listdir(self.processed_dir):
+            for graph in self.graphs:
+                if graph.number_of_nodes() <= max_graph_size:
+                
+                    # Read data from `raw_path
+                    graph_tmp = (torch.from_numpy(nx.to_numpy_array(graph)))
+                    adj = np.pad(graph_tmp, ((0, max_graph_size - graph_tmp.shape[1]), (0, max_graph_size - graph_tmp.shape[0])), "constant",constant_values = (0,0))
+                    adj = torch.from_numpy(adj)
+
+
+                    if self.pre_filter is not None and not self.pre_filter(data):
+                        continue
+
+                    if self.pre_transform is not None:
+                        data = self.pre_transform(data)
+
+                    torch.save(adj, osp.join(self.processed_dir, f'data_{idx}.pt'))
+                    idx += 1
+
+    def len(self):
+        return len(self.processed_file_names)
+
+    def get(self, idx):
+        data = torch.load(osp.join(self.processed_dir, f'data_{idx}.pt'))
+        return data
+    
+
